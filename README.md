@@ -37,6 +37,11 @@ Requires a Supabase project with **anonymous sign-ins enabled**
 
 ## Deployment
 
-`npm run build` produces a static `dist/` folder (includes an `.htaccess` SPA
-fallback for Apache hosts like Hostinger). Upload the contents of `dist/` to
-your web root.
+**Live at: https://schwarzejonas1-ship-it.github.io/funbet/**
+
+Every push to `main` auto-deploys to GitHub Pages via
+`.github/workflows/deploy.yml` (builds with the `/funbet/` base path and copies
+`index.html` to `404.html` as the SPA fallback).
+
+For Apache hosts (e.g. Hostinger) instead: `npm run build` and upload the
+contents of `dist/` to the web root — an `.htaccess` SPA fallback is included.
