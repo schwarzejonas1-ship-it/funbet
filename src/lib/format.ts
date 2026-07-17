@@ -38,5 +38,6 @@ export function timeAgo(iso: string): string {
 }
 
 export function inviteUrl(code: string): string {
-  return `${window.location.origin}/join/${code}`
+  // BASE_URL is '/' locally and '/funbet/' on GitHub Pages; it always ends with '/'
+  return `${window.location.origin}${import.meta.env.BASE_URL}join/${code}`
 }
