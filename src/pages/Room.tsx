@@ -35,7 +35,7 @@ export default function Room() {
   const [searchParams] = useSearchParams()
   const userId = useUserId()
   const navigate = useNavigate()
-  const { room, members, bets, loading, notFound, error } = useRoomData(roomId)
+  const { room, members, bets, optionsByBet, loading, notFound, error } = useRoomData(roomId)
   const { unreadCount } = useNotifications(roomId, userId)
   const [copied, setCopied] = useState<'code' | 'link' | null>(null)
 
@@ -169,7 +169,12 @@ export default function Room() {
         ) : (
           <div className="flex flex-col gap-3">
             {openBets.map((b) => (
-              <BetCard key={b.id} bet={b} to={`/room/${room.id}/bet/${b.id}`} />
+              <BetCard
+                key={b.id}
+                bet={b}
+                options={optionsByBet[b.id] ?? []}
+                to={`/room/${room.id}/bet/${b.id}`}
+              />
             ))}
           </div>
         )}
@@ -214,7 +219,12 @@ export default function Room() {
           <SectionHeading>Resolved bets</SectionHeading>
           <div className="flex flex-col gap-3">
             {resolvedBets.map((b) => (
-              <BetCard key={b.id} bet={b} to={`/room/${room.id}/bet/${b.id}`} />
+              <BetCard
+                key={b.id}
+                bet={b}
+                options={optionsByBet[b.id] ?? []}
+                to={`/room/${room.id}/bet/${b.id}`}
+              />
             ))}
           </div>
         </section>

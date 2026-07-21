@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { fetchBet, fetchMembers, fetchStakes } from '../lib/api'
-import type { Bet, Member, Stake } from '../lib/api'
+import { fetchBet, fetchMembers, fetchOptions, fetchStakes } from '../lib/api'
+import type { Bet, BetOption, Member, Stake } from '../lib/api'
 
-/** A single bet with its stakes and the room's members, kept live. */
+/** A single bet with its options, stakes and the room's members, kept live. */
 export function useBetData(roomId: string | undefined, betId: string | undefined) {
   const [bet, setBet] = useState<Bet | null>(null)
+  const [options, setOptions] = useState<BetOption[]>([])
   const [stakes, setStakes] = useState<Stake[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
@@ -15,8 +16,9 @@ export function useBetData(roomId: string | undefined, betId: string | undefined
   const refresh = useCallback(async () => {
     if (!roomId || !betId) return
     try {
-      const [b, s, m] = await Promise.all([
+      const [b, o, s, m] = await Promise.all([
         fetchBet(betId),
+        fetchOptions(betId),
         fetchStakes(betId),
         fetchMembers(roomId),
       ])
@@ -26,6 +28,7 @@ export function useBetData(roomId: string | undefined, betId: string | undefined
         return
       }
       setBet(b)
+      setOptions(o)
       setStakes(s)
       setMembers(m)
       setNotFound(false)
@@ -55,6 +58,11 @@ export function useBetData(roomId: string | undefined, betId: string | undefined
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'bet_options', filter: `bet_id=eq.${betId}` },
+        () => void refresh(),
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'room_members', filter: `room_id=eq.${roomId}` },
         () => void refresh(),
       )
@@ -64,5 +72,5 @@ export function useBetData(roomId: string | undefined, betId: string | undefined
     }
   }, [roomId, betId, refresh])
 
-  return { bet, stakes, members, loading, notFound, error, refresh }
+  return { bet, options, stakes, members, loading, notFound, error, refresh }
 }

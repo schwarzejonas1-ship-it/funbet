@@ -7,11 +7,13 @@ import {
   PageShell,
   PoolBar,
   Spinner,
+  optionColor,
 } from '../components/ui'
 import { Coins, WhatsAppIcon } from '../components/icons'
 import { useBetData } from '../hooks/useBetData'
 import { useUserId } from '../lib/auth'
 import { placeStake, resolveBet } from '../lib/api'
+import type { BetOption } from '../lib/api'
 import {
   betShareText,
   coins,
@@ -22,15 +24,22 @@ import {
 } from '../lib/format'
 import { getStoredRooms } from '../lib/rooms-storage'
 
+function Dot({ index }: { index: number }) {
+  return (
+    <span
+      className="h-3 w-3 shrink-0 rounded-full"
+      style={{ backgroundColor: optionColor(index) }}
+    />
+  )
+}
+
 export default function BetDetail() {
   const { roomId, betId } = useParams<{ roomId: string; betId: string }>()
   const userId = useUserId()
-  const { bet, stakes, members, loading, notFound, error, refresh } = useBetData(
-    roomId,
-    betId,
-  )
+  const { bet, options, stakes, members, loading, notFound, error, refresh } =
+    useBetData(roomId, betId)
 
-  const [side, setSide] = useState<boolean | null>(null)
+  const [chosen, setChosen] = useState<string | null>(null)
   const [amount, setAmount] = useState('')
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -44,31 +53,35 @@ export default function BetDetail() {
     )
   }
 
-  const total = bet.yes_pool + bet.no_pool
+  const sorted = [...options].sort((a, b) => a.position - b.position)
+  const total = sorted.reduce((s, o) => s + o.pool, 0)
   const open = bet.status === 'open'
   const isCreator = bet.creator_id === userId
   const me = members.find((m) => m.user_id === userId)
   const myStake = stakes.find((s) => s.user_id === userId)
+  const optionIndex = (id: string) => sorted.findIndex((o) => o.id === id)
+  const optionById = (id: string | null) => sorted.find((o) => o.id === id) ?? null
+  const winner = optionById(bet.winning_option_id)
   const wasRefunded =
-    !open && total > 0 && (bet.yes_pool === 0 || bet.no_pool === 0)
+    !open && total > 0 && !!winner && (winner.pool === 0 || winner.pool === total)
 
   const storedRoom = getStoredRooms().find((r) => r.id === roomId)
-
   const nameOf = (uid: string) =>
     members.find((m) => m.user_id === uid)?.display_name ?? 'Someone'
 
   const amt = parseInt(amount, 10) || 0
-  const sidePool = side === true ? bet.yes_pool : side === false ? bet.no_pool : 0
-  const estimate = side !== null && amt > 0 ? estimatePayout(amt, sidePool, total) : null
+  const chosenOption = optionById(chosen)
+  const estimate =
+    chosenOption && amt > 0 ? estimatePayout(amt, chosenOption.pool, total) : null
 
   const submitStake = async () => {
-    if (!betId || side === null || amt < 1 || busy) return
+    if (!betId || !chosen || amt < 1 || busy) return
     setBusy(true)
     setActionError(null)
     try {
-      await placeStake(betId, side, amt)
+      await placeStake(betId, chosen, amt)
       setAmount('')
-      setSide(null)
+      setChosen(null)
       await refresh()
     } catch (err) {
       setActionError((err as Error).message)
@@ -77,15 +90,18 @@ export default function BetDetail() {
     }
   }
 
-  const submitResolve = async (outcome: boolean) => {
+  const submitResolve = async (option: BetOption) => {
     if (!betId || busy) return
-    const label = outcome ? 'YES' : 'NO'
-    if (!window.confirm(`Resolve "${bet.question}" as ${label}? This can't be undone.`))
+    if (
+      !window.confirm(
+        `Declare "${option.label}" the winner of "${bet.question}"? This can't be undone.`,
+      )
+    )
       return
     setBusy(true)
     setActionError(null)
     try {
-      await resolveBet(betId, outcome)
+      await resolveBet(betId, option.id)
       await refresh()
     } catch (err) {
       setActionError((err as Error).message)
@@ -101,56 +117,52 @@ export default function BetDetail() {
       <Card className="p-4">
         <div className="flex items-start justify-between gap-2">
           <h2 className="text-lg font-bold leading-snug">{bet.question}</h2>
-          {open ? (
-            <Badge tone="brand">Open</Badge>
-          ) : (
-            <Badge tone={bet.outcome ? 'yes' : 'no'}>{bet.outcome ? 'YES' : 'NO'}</Badge>
-          )}
+          {open ? <Badge tone="brand">Open</Badge> : <Badge tone="neutral">Resolved</Badge>}
         </div>
         <p className="mt-1 text-xs text-faint">
           by {nameOf(bet.creator_id)} · {timeAgo(bet.created_at)}
         </p>
 
-        {!open && (
-          <div
-            className={`mt-3 rounded-xl px-3 py-2 text-sm font-semibold ${
-              bet.outcome ? 'bg-yes-soft text-yes' : 'bg-no-soft text-no'
-            }`}
-          >
-            Resolved {bet.outcome ? 'YES ✅' : 'NO ❌'}
+        {!open && winner && (
+          <div className="mt-3 rounded-xl bg-yes-soft px-3 py-2 text-sm font-semibold text-yes">
+            🏆 Winner: {winner.label}
             {wasRefunded && ' — pool was one-sided, all stakes refunded'}
           </div>
         )}
 
-        <div className="mt-4 grid grid-cols-2 gap-3 text-center">
-          <div className="rounded-xl bg-yes-soft p-3">
-            <p className="text-xs font-semibold uppercase text-yes">Yes</p>
-            <p className="tabular text-lg font-extrabold text-yes">
-              {payoutMultiple(bet.yes_pool, total) ?? 'no stakes'}
-            </p>
-            <p className="text-xs text-yes/80">
-              <Coins amount={bet.yes_pool} size={12} />
-            </p>
-          </div>
-          <div className="rounded-xl bg-no-soft p-3">
-            <p className="text-xs font-semibold uppercase text-no">No</p>
-            <p className="tabular text-lg font-extrabold text-no">
-              {payoutMultiple(bet.no_pool, total) ?? 'no stakes'}
-            </p>
-            <p className="text-xs text-no/80">
-              <Coins amount={bet.no_pool} size={12} />
-            </p>
-          </div>
+        <div className="mt-4">
+          <PoolBar pools={sorted.map((o) => o.pool)} />
         </div>
-        <div className="mt-3">
-          <PoolBar yes={bet.yes_pool} no={bet.no_pool} />
+
+        {/* Option odds table */}
+        <div className="mt-3 flex flex-col gap-2">
+          {sorted.map((o, i) => {
+            const isWinner = !open && o.id === bet.winning_option_id
+            return (
+              <div
+                key={o.id}
+                className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${
+                  isWinner ? 'bg-yes-soft ring-1 ring-yes/40' : 'bg-surface-2'
+                }`}
+              >
+                <Dot index={i} />
+                <span className="min-w-0 flex-1 truncate font-medium">{o.label}</span>
+                <span className="tabular text-xs text-muted">
+                  <Coins amount={o.pool} size={12} />
+                </span>
+                <span className="tabular w-14 text-right font-bold">
+                  {payoutMultiple(o.pool, total) ?? '—'}
+                </span>
+              </div>
+            )
+          })}
         </div>
-        <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-muted">
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-muted">
           Total pot: <Coins amount={total} size={13} />
         </p>
       </Card>
 
-      {/* Share the bet into the group chat */}
+      {/* Share into the group chat */}
       {open && storedRoom && (
         <a
           href={whatsappShareUrl(betShareText(storedRoom.name, bet.question, storedRoom.code))}
@@ -167,7 +179,7 @@ export default function BetDetail() {
         <Card className="mt-4 border-brand/30 bg-brand/10 p-4 text-sm">
           <span className="font-semibold text-content">
             You staked <Coins amount={myStake.amount} size={13} /> on{' '}
-            {myStake.side ? 'YES' : 'NO'}.
+            {optionById(myStake.option_id)?.label ?? '—'}.
           </span>{' '}
           {!open && myStake.payout !== null && (
             <span className={myStake.payout > 0 ? 'font-bold text-yes' : 'font-bold text-no'}>
@@ -179,33 +191,29 @@ export default function BetDetail() {
         </Card>
       )}
 
+      {/* Place a stake — pick one option */}
       {open && me && !myStake && (
         <Card className="mt-4 p-4">
           <h3 className="font-bold">Place your stake</h3>
           <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
             Your balance: <Coins amount={me.balance} size={12} /> · one stake per bet
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setSide(true)}
-              className={`rounded-xl border-2 py-3 font-bold transition ${
-                side === true
-                  ? 'border-yes bg-yes text-ink'
-                  : 'border-yes/40 bg-yes-soft text-yes'
-              }`}
-            >
-              YES
-            </button>
-            <button
-              onClick={() => setSide(false)}
-              className={`rounded-xl border-2 py-3 font-bold transition ${
-                side === false
-                  ? 'border-no bg-no text-ink'
-                  : 'border-no/40 bg-no-soft text-no'
-              }`}
-            >
-              NO
-            </button>
+          <div className="mt-3 flex flex-col gap-2">
+            {sorted.map((o, i) => (
+              <button
+                key={o.id}
+                onClick={() => setChosen(o.id)}
+                className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-left font-semibold transition ${
+                  chosen === o.id
+                    ? 'border-brand bg-brand/15 text-content'
+                    : 'border-line bg-surface-2 text-muted'
+                }`}
+              >
+                <Dot index={i} />
+                <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                <span className="tabular text-xs">{payoutMultiple(o.pool, total) ?? '—'}</span>
+              </button>
+            ))}
           </div>
           <div className="mt-3 flex gap-2">
             <input
@@ -233,9 +241,9 @@ export default function BetDetail() {
               </button>
             ))}
           </div>
-          {estimate !== null && (
+          {estimate !== null && chosenOption && (
             <p className="mt-2 flex items-center gap-1.5 text-sm text-muted">
-              If {side ? 'YES' : 'NO'} wins, you'd get back about{' '}
+              If {chosenOption.label} wins, you'd get back about{' '}
               <span className="font-bold text-content">
                 <Coins amount={estimate} size={13} />
               </span>
@@ -243,7 +251,7 @@ export default function BetDetail() {
           )}
           <button
             onClick={submitStake}
-            disabled={side === null || amt < 1 || amt > me.balance || busy}
+            disabled={!chosen || amt < 1 || amt > me.balance || busy}
             className="mt-3 w-full rounded-xl bg-brand-strong py-3 font-semibold text-white transition active:scale-[0.98] hover:bg-brand disabled:opacity-40"
           >
             {busy ? 'Placing…' : 'Place Stake'}
@@ -251,65 +259,71 @@ export default function BetDetail() {
         </Card>
       )}
 
+      {/* Stakes list */}
       {stakes.length > 0 && (
         <section className="mt-4">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
             Stakes ({stakes.length})
           </h3>
           <Card>
-            {stakes.map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center justify-between border-b border-line/60 px-4 py-3 text-sm last:border-b-0"
-              >
-                <span className="font-medium">
-                  {nameOf(s.user_id)}
-                  {s.user_id === userId && (
-                    <span className="ml-1 text-xs text-faint">(you)</span>
-                  )}
-                </span>
-                <span className="flex items-center gap-2">
-                  <Badge tone={s.side ? 'yes' : 'no'}>{s.side ? 'YES' : 'NO'}</Badge>
-                  <span className="font-semibold">
-                    <Coins amount={s.amount} size={13} />
+            {stakes.map((s) => {
+              const opt = optionById(s.option_id)
+              return (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between border-b border-line/60 px-4 py-3 text-sm last:border-b-0"
+                >
+                  <span className="min-w-0 font-medium">
+                    {nameOf(s.user_id)}
+                    {s.user_id === userId && (
+                      <span className="ml-1 text-xs text-faint">(you)</span>
+                    )}
                   </span>
-                  {!open && s.payout !== null && (
-                    <span
-                      className={`tabular text-xs font-bold ${
-                        s.payout > 0 ? 'text-yes' : 'text-no'
-                      }`}
-                    >
-                      {s.payout > 0 ? `+${coins(s.payout)}` : '0'}
+                  <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5 text-xs text-muted">
+                      {opt && <Dot index={optionIndex(opt.id)} />}
+                      <span className="max-w-24 truncate">{opt?.label ?? '—'}</span>
                     </span>
-                  )}
-                </span>
-              </div>
-            ))}
+                    <span className="font-semibold">
+                      <Coins amount={s.amount} size={13} />
+                    </span>
+                    {!open && s.payout !== null && (
+                      <span
+                        className={`tabular text-xs font-bold ${
+                          s.payout > 0 ? 'text-yes' : 'text-no'
+                        }`}
+                      >
+                        {s.payout > 0 ? `+${coins(s.payout)}` : '0'}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )
+            })}
           </Card>
         </section>
       )}
 
+      {/* Creator resolves by picking the winning option */}
       {open && isCreator && (
         <Card className="mt-4 border-gold/30 bg-gold/10 p-4">
-          <h3 className="font-bold text-gold">Resolve this bet</h3>
+          <h3 className="font-bold text-gold">Declare the winner</h3>
           <p className="mt-0.5 text-xs text-gold/80">
             You created this bet, so you settle it once the outcome is known.
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <button
-              onClick={() => submitResolve(true)}
-              disabled={busy}
-              className="rounded-xl bg-yes py-3 font-bold text-ink transition active:scale-[0.98] disabled:opacity-50"
-            >
-              Resolve YES
-            </button>
-            <button
-              onClick={() => submitResolve(false)}
-              disabled={busy}
-              className="rounded-xl bg-no py-3 font-bold text-ink transition active:scale-[0.98] disabled:opacity-50"
-            >
-              Resolve NO
-            </button>
+          <div className="mt-3 flex flex-col gap-2">
+            {sorted.map((o, i) => (
+              <button
+                key={o.id}
+                onClick={() => submitResolve(o)}
+                disabled={busy}
+                className="flex items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-left font-semibold text-content transition active:scale-[0.98] hover:border-gold/60 disabled:opacity-50"
+              >
+                <Dot index={i} />
+                <span className="min-w-0 flex-1 truncate">{o.label} wins</span>
+                <span className="text-xs text-muted">Resolve →</span>
+              </button>
+            ))}
           </div>
         </Card>
       )}

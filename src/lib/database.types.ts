@@ -14,42 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
+      bet_options: {
+        Row: {
+          bet_id: string
+          created_at: string
+          id: string
+          label: string
+          pool: number
+          position: number
+        }
+        Insert: {
+          bet_id: string
+          created_at?: string
+          id?: string
+          label: string
+          pool?: number
+          position: number
+        }
+        Update: {
+          bet_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          pool?: number
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bet_options_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "bets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bets: {
         Row: {
           created_at: string
           creator_id: string
           id: string
-          no_pool: number
-          outcome: boolean | null
           question: string
           resolved_at: string | null
           room_id: string
           status: string
-          yes_pool: number
+          winning_option_id: string | null
         }
         Insert: {
           created_at?: string
           creator_id: string
           id?: string
-          no_pool?: number
-          outcome?: boolean | null
           question: string
           resolved_at?: string | null
           room_id: string
           status?: string
-          yes_pool?: number
+          winning_option_id?: string | null
         }
         Update: {
           created_at?: string
           creator_id?: string
           id?: string
-          no_pool?: number
-          outcome?: boolean | null
           question?: string
           resolved_at?: string | null
           room_id?: string
           status?: string
-          yes_pool?: number
+          winning_option_id?: string | null
         }
         Relationships: [
           {
@@ -57,6 +86,13 @@ export type Database = {
             columns: ["room_id"]
             isOneToOne: false
             referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bets_winning_option_id_fkey"
+            columns: ["winning_option_id"]
+            isOneToOne: false
+            referencedRelation: "bet_options"
             referencedColumns: ["id"]
           },
         ]
@@ -177,8 +213,8 @@ export type Database = {
           bet_id: string
           created_at: string
           id: string
+          option_id: string
           payout: number | null
-          side: boolean
           user_id: string
         }
         Insert: {
@@ -186,8 +222,8 @@ export type Database = {
           bet_id: string
           created_at?: string
           id?: string
+          option_id: string
           payout?: number | null
-          side: boolean
           user_id: string
         }
         Update: {
@@ -195,8 +231,8 @@ export type Database = {
           bet_id?: string
           created_at?: string
           id?: string
+          option_id?: string
           payout?: number | null
-          side?: boolean
           user_id?: string
         }
         Relationships: [
@@ -207,6 +243,13 @@ export type Database = {
             referencedRelation: "bets"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stakes_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "bet_options"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -215,7 +258,7 @@ export type Database = {
     }
     Functions: {
       create_bet: {
-        Args: { p_question: string; p_room_id: string }
+        Args: { p_options: string[]; p_question: string; p_room_id: string }
         Returns: Json
       }
       create_room: {
@@ -235,11 +278,11 @@ export type Database = {
         Returns: Json
       }
       place_stake: {
-        Args: { p_amount: number; p_bet_id: string; p_side: boolean }
+        Args: { p_amount: number; p_bet_id: string; p_option_id: string }
         Returns: Json
       }
       resolve_bet: {
-        Args: { p_bet_id: string; p_outcome: boolean }
+        Args: { p_bet_id: string; p_winning_option_id: string }
         Returns: Json
       }
     }

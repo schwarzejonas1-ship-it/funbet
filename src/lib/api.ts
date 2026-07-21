@@ -4,6 +4,7 @@ import type { Tables } from './database.types'
 export type Room = Tables<'rooms'>
 export type Member = Tables<'room_members'>
 export type Bet = Tables<'bets'>
+export type BetOption = Tables<'bet_options'>
 export type Stake = Tables<'stakes'>
 export type Notification = Tables<'notifications'>
 
@@ -53,10 +54,15 @@ export async function joinRoom(
   return data as unknown as { room_id: string; room_name: string; member_id: string }
 }
 
-export async function createBet(roomId: string, question: string): Promise<Bet> {
+export async function createBet(
+  roomId: string,
+  question: string,
+  options: string[],
+): Promise<Bet> {
   const { data, error } = await supabase.rpc('create_bet', {
     p_room_id: roomId,
     p_question: question,
+    p_options: options,
   })
   if (error) fail(error.message)
   return data as unknown as Bet
@@ -64,22 +70,25 @@ export async function createBet(roomId: string, question: string): Promise<Bet> 
 
 export async function placeStake(
   betId: string,
-  side: boolean,
+  optionId: string,
   amount: number,
 ): Promise<Stake> {
   const { data, error } = await supabase.rpc('place_stake', {
     p_bet_id: betId,
-    p_side: side,
+    p_option_id: optionId,
     p_amount: amount,
   })
   if (error) fail(error.message)
   return data as unknown as Stake
 }
 
-export async function resolveBet(betId: string, outcome: boolean): Promise<Bet> {
+export async function resolveBet(
+  betId: string,
+  winningOptionId: string,
+): Promise<Bet> {
   const { data, error } = await supabase.rpc('resolve_bet', {
     p_bet_id: betId,
-    p_outcome: outcome,
+    p_winning_option_id: winningOptionId,
   })
   if (error) fail(error.message)
   return data as unknown as Bet
@@ -136,6 +145,34 @@ export async function fetchStakes(betId: string): Promise<Stake[]> {
     .order('created_at', { ascending: true })
   if (error) fail(error.message)
   return data
+}
+
+export async function fetchOptions(betId: string): Promise<BetOption[]> {
+  const { data, error } = await supabase
+    .from('bet_options')
+    .select('*')
+    .eq('bet_id', betId)
+    .order('position', { ascending: true })
+  if (error) fail(error.message)
+  return data
+}
+
+/** All options for a set of bets, grouped by bet_id (for the room feed). */
+export async function fetchOptionsForBets(
+  betIds: string[],
+): Promise<Record<string, BetOption[]>> {
+  if (betIds.length === 0) return {}
+  const { data, error } = await supabase
+    .from('bet_options')
+    .select('*')
+    .in('bet_id', betIds)
+    .order('position', { ascending: true })
+  if (error) fail(error.message)
+  const grouped: Record<string, BetOption[]> = {}
+  for (const opt of data) {
+    ;(grouped[opt.bet_id] ??= []).push(opt)
+  }
+  return grouped
 }
 
 export async function fetchNotifications(roomId: string): Promise<Notification[]> {

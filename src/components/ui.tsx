@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ReactNode } from 'react'
-import type { Bet } from '../lib/api'
+import type { Bet, BetOption } from '../lib/api'
 import { payoutMultiple, timeAgo } from '../lib/format'
 import {
   BellIcon,
@@ -8,6 +8,15 @@ import {
   Coins,
   DiceIcon,
 } from './icons'
+
+/** Segment colors for bet options. Index 0/1 = green/red so Yes/No keep their look. */
+export const OPTION_COLORS = [
+  '#34d399', '#fb7185', '#818cf8', '#fbbf24',
+  '#38bdf8', '#c084fc', '#2dd4bf', '#f472b6',
+]
+export function optionColor(index: number): string {
+  return OPTION_COLORS[index % OPTION_COLORS.length]
+}
 
 export const inputCls =
   'w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-base text-content placeholder:text-faint outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30'
@@ -164,45 +173,69 @@ export function CenteredMessage({
   )
 }
 
-export function PoolBar({ yes, no }: { yes: number; no: number }) {
-  const total = yes + no
+/** Segmented pool bar — one colored slice per option pool (by position order). */
+export function PoolBar({ pools }: { pools: number[] }) {
+  const total = pools.reduce((a, b) => a + b, 0)
   if (total === 0) {
     return <div className="h-2.5 rounded-full bg-surface-2" />
   }
-  const yesPct = (yes / total) * 100
   return (
     <div className="flex h-2.5 overflow-hidden rounded-full bg-surface-2">
-      <div className="bg-yes transition-all duration-500" style={{ width: `${yesPct}%` }} />
-      <div className="bg-no transition-all duration-500" style={{ width: `${100 - yesPct}%` }} />
+      {pools.map((p, i) =>
+        p > 0 ? (
+          <div
+            key={i}
+            className="transition-all duration-500"
+            style={{ width: `${(p / total) * 100}%`, backgroundColor: optionColor(i) }}
+          />
+        ) : null,
+      )}
     </div>
   )
 }
 
-export function BetCard({ bet, to }: { bet: Bet; to: string }) {
-  const total = bet.yes_pool + bet.no_pool
+export function BetCard({
+  bet,
+  options,
+  to,
+}: {
+  bet: Bet
+  options: BetOption[]
+  to: string
+}) {
+  const sorted = [...options].sort((a, b) => a.position - b.position)
+  const total = sorted.reduce((s, o) => s + o.pool, 0)
   const open = bet.status === 'open'
+  const winner = sorted.find((o) => o.id === bet.winning_option_id)
+  const ranked = [...sorted].sort((a, b) => b.pool - a.pool)
+  const top = ranked.slice(0, 2)
+
   return (
     <Link
       to={to}
       className="block rounded-2xl border border-line bg-surface p-4 shadow-sm transition active:scale-[0.99] hover:border-brand/50"
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="font-semibold leading-snug text-content">{bet.question}</p>
-        {open ? (
-          <Badge tone="brand">Open</Badge>
-        ) : (
-          <Badge tone={bet.outcome ? 'yes' : 'no'}>{bet.outcome ? 'YES' : 'NO'}</Badge>
-        )}
+        <p className="min-w-0 font-semibold leading-snug text-content">{bet.question}</p>
+        {open ? <Badge tone="brand">Open</Badge> : <Badge tone="neutral">Resolved</Badge>}
       </div>
       <div className="mt-3">
-        <PoolBar yes={bet.yes_pool} no={bet.no_pool} />
+        <PoolBar pools={sorted.map((o) => o.pool)} />
       </div>
-      <div className="mt-2 flex items-center justify-between text-xs text-muted">
-        <span className="tabular">
-          Yes {payoutMultiple(bet.yes_pool, total) ?? '—'} · No{' '}
-          {payoutMultiple(bet.no_pool, total) ?? '—'}
-        </span>
-        <span className="flex items-center gap-1.5">
+      <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted">
+        {open ? (
+          <span className="tabular min-w-0 truncate">
+            {top
+              .map((o) => `${o.label} ${payoutMultiple(o.pool, total) ?? '—'}`)
+              .join(' · ')}
+            {ranked.length > 2 ? ` · +${ranked.length - 2}` : ''}
+          </span>
+        ) : (
+          <span className="min-w-0 truncate font-medium text-yes">
+            🏆 {winner?.label ?? '—'}
+          </span>
+        )}
+        <span className="flex shrink-0 items-center gap-1.5">
           <Coins amount={total} size={13} /> · {timeAgo(bet.created_at)}
         </span>
       </div>
