@@ -62,7 +62,8 @@ export function roomInviteText(roomName: string, code: string): string {
 
 export function betShareText(roomName: string, question: string, code: string): string {
   return (
-    `🎲 New bet in "${roomName}":\n"${question}"\n\n` +
-    `Place your coins 👉 ${inviteUrl(code)}`
+    `🎲 New bet in "${roomName}"\n\n` +
+    `"${question}"\n\n` +
+    `👉 Tap to bet YES or NO:\n${inviteUrl(code)}`
   )
 }
