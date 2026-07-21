@@ -41,3 +41,28 @@ export function inviteUrl(code: string): string {
   // BASE_URL is '/' locally and '/funbet/' on GitHub Pages; it always ends with '/'
   return `${window.location.origin}${import.meta.env.BASE_URL}join/${code}`
 }
+
+/** Room codes are stored lowercase; show them uppercase for easy reading/sharing. */
+export function displayCode(code: string): string {
+  return code.toUpperCase()
+}
+
+/** Opens WhatsApp with a prefilled message; no number = pick any chat/group. */
+export function whatsappShareUrl(text: string): string {
+  return `https://wa.me/?text=${encodeURIComponent(text)}`
+}
+
+export function roomInviteText(roomName: string, code: string): string {
+  return (
+    `🎲 Join my FunBet room "${roomName}"!\n\n` +
+    `Room code: ${displayCode(code)}\n` +
+    `Or tap: ${inviteUrl(code)}`
+  )
+}
+
+export function betShareText(roomName: string, question: string, code: string): string {
+  return (
+    `🎲 New bet in "${roomName}":\n"${question}"\n\n` +
+    `Place your coins 👉 ${inviteUrl(code)}`
+  )
+}

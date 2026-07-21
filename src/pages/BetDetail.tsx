@@ -1,10 +1,26 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { ErrorText, PageShell, PoolBar, Spinner } from '../components/ui'
+import {
+  Badge,
+  Card,
+  ErrorText,
+  PageShell,
+  PoolBar,
+  Spinner,
+} from '../components/ui'
+import { Coins, WhatsAppIcon } from '../components/icons'
 import { useBetData } from '../hooks/useBetData'
 import { useUserId } from '../lib/auth'
 import { placeStake, resolveBet } from '../lib/api'
-import { coins, estimatePayout, payoutMultiple, timeAgo } from '../lib/format'
+import {
+  betShareText,
+  coins,
+  estimatePayout,
+  payoutMultiple,
+  timeAgo,
+  whatsappShareUrl,
+} from '../lib/format'
+import { getStoredRooms } from '../lib/rooms-storage'
 
 export default function BetDetail() {
   const { roomId, betId } = useParams<{ roomId: string; betId: string }>()
@@ -23,7 +39,7 @@ export default function BetDetail() {
   if (notFound || !bet) {
     return (
       <PageShell title="Bet not found" back={`/room/${roomId}`}>
-        <p className="text-sm text-slate-600">This bet doesn't exist.</p>
+        <p className="text-sm text-muted">This bet doesn't exist.</p>
       </PageShell>
     )
   }
@@ -35,6 +51,8 @@ export default function BetDetail() {
   const myStake = stakes.find((s) => s.user_id === userId)
   const wasRefunded =
     !open && total > 0 && (bet.yes_pool === 0 || bet.no_pool === 0)
+
+  const storedRoom = getStoredRooms().find((r) => r.id === roomId)
 
   const nameOf = (uid: string) =>
     members.find((m) => m.user_id === uid)?.display_name ?? 'Someone'
@@ -80,31 +98,23 @@ export default function BetDetail() {
     <PageShell title="Bet" back={`/room/${roomId}`}>
       <ErrorText message={error} />
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <Card className="p-4">
         <div className="flex items-start justify-between gap-2">
           <h2 className="text-lg font-bold leading-snug">{bet.question}</h2>
           {open ? (
-            <span className="shrink-0 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
-              Open
-            </span>
+            <Badge tone="brand">Open</Badge>
           ) : (
-            <span
-              className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                bet.outcome ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-              }`}
-            >
-              {bet.outcome ? 'YES' : 'NO'}
-            </span>
+            <Badge tone={bet.outcome ? 'yes' : 'no'}>{bet.outcome ? 'YES' : 'NO'}</Badge>
           )}
         </div>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-faint">
           by {nameOf(bet.creator_id)} · {timeAgo(bet.created_at)}
         </p>
 
         {!open && (
           <div
             className={`mt-3 rounded-xl px-3 py-2 text-sm font-semibold ${
-              bet.outcome ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'
+              bet.outcome ? 'bg-yes-soft text-yes' : 'bg-no-soft text-no'
             }`}
           >
             Resolved {bet.outcome ? 'YES ✅' : 'NO ❌'}
@@ -113,63 +123,75 @@ export default function BetDetail() {
         )}
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-center">
-          <div className="rounded-xl bg-emerald-50 p-3">
-            <p className="text-xs font-semibold uppercase text-emerald-600">Yes</p>
-            <p className="text-lg font-extrabold text-emerald-700">
+          <div className="rounded-xl bg-yes-soft p-3">
+            <p className="text-xs font-semibold uppercase text-yes">Yes</p>
+            <p className="tabular text-lg font-extrabold text-yes">
               {payoutMultiple(bet.yes_pool, total) ?? 'no stakes'}
             </p>
-            <p className="text-xs text-emerald-600">🪙 {coins(bet.yes_pool)}</p>
+            <p className="text-xs text-yes/80">
+              <Coins amount={bet.yes_pool} size={12} />
+            </p>
           </div>
-          <div className="rounded-xl bg-rose-50 p-3">
-            <p className="text-xs font-semibold uppercase text-rose-500">No</p>
-            <p className="text-lg font-extrabold text-rose-600">
+          <div className="rounded-xl bg-no-soft p-3">
+            <p className="text-xs font-semibold uppercase text-no">No</p>
+            <p className="tabular text-lg font-extrabold text-no">
               {payoutMultiple(bet.no_pool, total) ?? 'no stakes'}
             </p>
-            <p className="text-xs text-rose-500">🪙 {coins(bet.no_pool)}</p>
+            <p className="text-xs text-no/80">
+              <Coins amount={bet.no_pool} size={12} />
+            </p>
           </div>
         </div>
         <div className="mt-3">
           <PoolBar yes={bet.yes_pool} no={bet.no_pool} />
         </div>
-        <p className="mt-2 text-center text-xs text-slate-500">
-          Total pot: 🪙 {coins(total)}
+        <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-muted">
+          Total pot: <Coins amount={total} size={13} />
         </p>
-      </div>
+      </Card>
+
+      {/* Share the bet into the group chat */}
+      {open && storedRoom && (
+        <a
+          href={whatsappShareUrl(betShareText(storedRoom.name, bet.question, storedRoom.code))}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-whatsapp py-3 text-base font-semibold text-ink transition active:scale-[0.98]"
+        >
+          <WhatsAppIcon size={20} />
+          Tell the group on WhatsApp
+        </a>
+      )}
 
       {myStake && (
-        <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm">
-          <span className="font-semibold text-indigo-900">
-            You staked 🪙 {coins(myStake.amount)} on {myStake.side ? 'YES' : 'NO'}.
+        <Card className="mt-4 border-brand/30 bg-brand/10 p-4 text-sm">
+          <span className="font-semibold text-content">
+            You staked <Coins amount={myStake.amount} size={13} /> on{' '}
+            {myStake.side ? 'YES' : 'NO'}.
           </span>{' '}
           {!open && myStake.payout !== null && (
-            <span
-              className={
-                myStake.payout > 0
-                  ? 'font-bold text-emerald-700'
-                  : 'font-bold text-rose-600'
-              }
-            >
+            <span className={myStake.payout > 0 ? 'font-bold text-yes' : 'font-bold text-no'}>
               {myStake.payout > 0
-                ? `You got back 🪙 ${coins(myStake.payout)}!`
+                ? `You got back ${coins(myStake.payout)} coins!`
                 : 'Better luck next time.'}
             </span>
           )}
-        </div>
+        </Card>
       )}
 
       {open && me && !myStake && (
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <Card className="mt-4 p-4">
           <h3 className="font-bold">Place your stake</h3>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Your balance: 🪙 {coins(me.balance)} · one stake per bet
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+            Your balance: <Coins amount={me.balance} size={12} /> · one stake per bet
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <button
               onClick={() => setSide(true)}
               className={`rounded-xl border-2 py-3 font-bold transition ${
                 side === true
-                  ? 'border-emerald-500 bg-emerald-500 text-white'
-                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  ? 'border-yes bg-yes text-ink'
+                  : 'border-yes/40 bg-yes-soft text-yes'
               }`}
             >
               YES
@@ -178,8 +200,8 @@ export default function BetDetail() {
               onClick={() => setSide(false)}
               className={`rounded-xl border-2 py-3 font-bold transition ${
                 side === false
-                  ? 'border-rose-500 bg-rose-500 text-white'
-                  : 'border-rose-200 bg-rose-50 text-rose-600'
+                  ? 'border-no bg-no text-ink'
+                  : 'border-no/40 bg-no-soft text-no'
               }`}
             >
               NO
@@ -187,7 +209,7 @@ export default function BetDetail() {
           </div>
           <div className="mt-3 flex gap-2">
             <input
-              className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-3 text-base outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+              className="tabular min-w-0 flex-1 rounded-xl border border-line bg-surface-2 px-4 py-3 text-base text-content outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
               type="number"
               inputMode="numeric"
               min={1}
@@ -205,58 +227,56 @@ export default function BetDetail() {
                 key={chip.label}
                 onClick={() => setAmount(String(chip.value))}
                 disabled={chip.value < 1 || chip.value > me.balance}
-                className="shrink-0 rounded-xl bg-slate-100 px-3 text-sm font-semibold text-slate-600 disabled:opacity-40"
+                className="shrink-0 rounded-xl bg-surface-2 px-3 text-sm font-semibold text-muted transition hover:text-content disabled:opacity-40"
               >
                 {chip.label}
               </button>
             ))}
           </div>
           {estimate !== null && (
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 flex items-center gap-1.5 text-sm text-muted">
               If {side ? 'YES' : 'NO'} wins, you'd get back about{' '}
-              <span className="font-bold">🪙 {coins(estimate)}</span>
+              <span className="font-bold text-content">
+                <Coins amount={estimate} size={13} />
+              </span>
             </p>
           )}
           <button
             onClick={submitStake}
             disabled={side === null || amt < 1 || amt > me.balance || busy}
-            className="mt-3 w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white transition active:scale-[0.98] disabled:opacity-50"
+            className="mt-3 w-full rounded-xl bg-brand-strong py-3 font-semibold text-white transition active:scale-[0.98] hover:bg-brand disabled:opacity-40"
           >
             {busy ? 'Placing…' : 'Place Stake'}
           </button>
-        </div>
+        </Card>
       )}
 
       {stakes.length > 0 && (
         <section className="mt-4">
-          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
             Stakes ({stakes.length})
           </h3>
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <Card>
             {stakes.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
+                className="flex items-center justify-between border-b border-line/60 px-4 py-3 text-sm last:border-b-0"
               >
                 <span className="font-medium">
                   {nameOf(s.user_id)}
                   {s.user_id === userId && (
-                    <span className="ml-1 text-xs text-slate-400">(you)</span>
+                    <span className="ml-1 text-xs text-faint">(you)</span>
                   )}
                 </span>
                 <span className="flex items-center gap-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                      s.side ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'
-                    }`}
-                  >
-                    {s.side ? 'YES' : 'NO'}
+                  <Badge tone={s.side ? 'yes' : 'no'}>{s.side ? 'YES' : 'NO'}</Badge>
+                  <span className="font-semibold">
+                    <Coins amount={s.amount} size={13} />
                   </span>
-                  <span className="font-semibold">🪙 {coins(s.amount)}</span>
                   {!open && s.payout !== null && (
                     <span
-                      className={`text-xs font-bold ${
-                        s.payout > 0 ? 'text-emerald-600' : 'text-rose-500'
+                      className={`tabular text-xs font-bold ${
+                        s.payout > 0 ? 'text-yes' : 'text-no'
                       }`}
                     >
                       {s.payout > 0 ? `+${coins(s.payout)}` : '0'}
@@ -265,33 +285,33 @@ export default function BetDetail() {
                 </span>
               </div>
             ))}
-          </div>
+          </Card>
         </section>
       )}
 
       {open && isCreator && (
-        <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <h3 className="font-bold text-amber-900">Resolve this bet</h3>
-          <p className="mt-0.5 text-xs text-amber-700">
+        <Card className="mt-4 border-gold/30 bg-gold/10 p-4">
+          <h3 className="font-bold text-gold">Resolve this bet</h3>
+          <p className="mt-0.5 text-xs text-gold/80">
             You created this bet, so you settle it once the outcome is known.
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <button
               onClick={() => submitResolve(true)}
               disabled={busy}
-              className="rounded-xl bg-emerald-600 py-3 font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+              className="rounded-xl bg-yes py-3 font-bold text-ink transition active:scale-[0.98] disabled:opacity-50"
             >
               Resolve YES
             </button>
             <button
               onClick={() => submitResolve(false)}
               disabled={busy}
-              className="rounded-xl bg-rose-600 py-3 font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+              className="rounded-xl bg-no py-3 font-bold text-ink transition active:scale-[0.98] disabled:opacity-50"
             >
               Resolve NO
             </button>
           </div>
-        </section>
+        </Card>
       )}
 
       <ErrorText message={actionError} />

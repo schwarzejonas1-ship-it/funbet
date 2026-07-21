@@ -37,7 +37,7 @@ export default function CreateRoom() {
     <PageShell title="Create a Room" back="/">
       <form onSubmit={submit} className="flex flex-col gap-4">
         <div>
-          <label className="text-sm font-medium text-slate-600">Room name</label>
+          <label className="text-sm font-medium text-muted">Room name</label>
           <input
             className={`${inputCls} mt-1`}
             placeholder="e.g. Board Game Night"
@@ -48,7 +48,7 @@ export default function CreateRoom() {
           />
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-600">Your name</label>
+          <label className="text-sm font-medium text-muted">Your name</label>
           <input
             className={`${inputCls} mt-1`}
             placeholder="e.g. Jonas"
@@ -58,7 +58,7 @@ export default function CreateRoom() {
           />
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-600">
+          <label className="text-sm font-medium text-muted">
             Starting coins per member
           </label>
           <input
@@ -69,7 +69,7 @@ export default function CreateRoom() {
             value={startingBalance}
             onChange={(e) => setStartingBalance(e.target.value)}
           />
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-faint">
             Everyone who joins starts with this balance.
           </p>
         </div>

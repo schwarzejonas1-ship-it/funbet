@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ErrorText, PageShell, primaryBtnCls } from '../components/ui'
+import { ErrorText, PageShell, inputCls, primaryBtnCls } from '../components/ui'
 import { createBet } from '../lib/api'
 
 export default function NewBet() {
@@ -27,11 +27,11 @@ export default function NewBet() {
   return (
     <PageShell title="New Bet" back={`/room/${roomId}`}>
       <form onSubmit={submit} className="flex flex-col gap-3">
-        <label className="text-sm font-medium text-slate-600">
+        <label className="text-sm font-medium text-muted">
           A yes/no question your friends can bet on
         </label>
         <textarea
-          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+          className={`${inputCls} resize-none`}
           rows={3}
           placeholder='e.g. "Marcus beats David at Catan tonight"'
           value={question}
@@ -39,14 +39,14 @@ export default function NewBet() {
           maxLength={200}
           autoFocus
         />
-        <p className="-mt-1 text-right text-xs text-slate-400">
+        <p className="-mt-1 text-right text-xs text-faint">
           {question.length}/200
         </p>
         <button type="submit" disabled={!question.trim() || busy} className={primaryBtnCls}>
           {busy ? 'Creating…' : 'Create Bet'}
         </button>
         <ErrorText message={error} />
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted">
           Everyone in the room gets notified. You'll be the one to resolve it
           once the outcome is known.
         </p>

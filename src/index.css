@@ -1,6 +1,48 @@
 @import "tailwindcss";
 
+/* ---- Sleek midnight theme tokens (Tailwind v4 @theme → utilities like bg-surface) ---- */
+@theme {
+  --color-ink: #0b1120;        /* app background (deep navy) */
+  --color-ink-soft: #0f172a;   /* gradient tail */
+  --color-surface: #151c2c;    /* cards */
+  --color-surface-2: #1c2740;  /* raised / hover / inputs */
+  --color-line: #263149;       /* borders */
+  --color-content: #e7ecf5;    /* primary text */
+  --color-muted: #93a1bd;      /* secondary text */
+  --color-faint: #5f6d8a;      /* tertiary text */
+
+  --color-brand: #818cf8;      /* calm indigo accent */
+  --color-brand-strong: #6366f1;
+  --color-yes: #34d399;        /* emerald-400 */
+  --color-yes-soft: #103029;
+  --color-no: #fb7185;         /* rose-400 */
+  --color-no-soft: #331722;
+  --color-gold: #fbbf24;       /* coins / amber */
+  --color-whatsapp: #25d366;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
 body {
-  @apply bg-slate-100 text-slate-900 antialiased;
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(120% 80% at 50% -10%, #1b2540 0%, rgba(27, 37, 64, 0) 60%),
+    linear-gradient(180deg, var(--color-ink) 0%, var(--color-ink-soft) 100%);
+  background-attachment: fixed;
+  color: var(--color-content);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Nicer numeric alignment for balances / odds / codes */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }

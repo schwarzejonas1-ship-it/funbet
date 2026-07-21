@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { inputCls, primaryBtnCls } from '../components/ui'
+import { inputCls, primaryBtnCls, secondaryBtnCls } from '../components/ui'
+import { ChevronRightIcon, DiceIcon } from '../components/icons'
 import { getStoredRooms } from '../lib/rooms-storage'
 
 /** Accepts a bare room code or a full invite URL and extracts the code. */
@@ -26,10 +27,12 @@ export default function Home() {
 
   return (
     <div className="mx-auto min-h-dvh max-w-md px-4 pb-12">
-      <div className="pt-14 pb-8 text-center">
-        <div className="text-6xl">🎲</div>
-        <h1 className="mt-3 text-3xl font-extrabold tracking-tight">FunBet</h1>
-        <p className="mt-1 text-slate-500">
+      <div className="pt-16 pb-8 text-center">
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-brand/15 text-brand ring-1 ring-brand/25">
+          <DiceIcon size={44} />
+        </div>
+        <h1 className="mt-4 text-3xl font-extrabold tracking-tight">FunBet</h1>
+        <p className="mt-1 text-muted">
           Friendly bets with play money. No stakes, all bragging rights.
         </p>
       </div>
@@ -39,13 +42,13 @@ export default function Home() {
           Create a Room
         </Link>
         {joining ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <label className="text-sm font-medium text-slate-600">
-              Paste an invite link or room code
+          <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
+            <label className="text-sm font-medium text-muted">
+              Enter room code
             </label>
             <input
-              className={`${inputCls} mt-2`}
-              placeholder="e.g. abc123de"
+              className={`${inputCls} mt-2 text-center text-lg font-bold uppercase tracking-[0.3em] tabular`}
+              placeholder="ABC123DE"
               value={codeInput}
               onChange={(e) => setCodeInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && goJoin()}
@@ -58,12 +61,12 @@ export default function Home() {
             >
               Continue
             </button>
+            <p className="mt-2 text-center text-xs text-faint">
+              You can paste a full invite link too.
+            </p>
           </div>
         ) : (
-          <button
-            onClick={() => setJoining(true)}
-            className="w-full rounded-xl border border-slate-300 bg-white py-3 text-base font-semibold text-slate-700 shadow-sm transition active:scale-[0.98]"
-          >
+          <button onClick={() => setJoining(true)} className={secondaryBtnCls}>
             Join a Room
           </button>
         )}
@@ -71,7 +74,7 @@ export default function Home() {
 
       {rooms.length > 0 && (
         <div className="mt-8">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
             Your rooms
           </h2>
           <div className="flex flex-col gap-2">
@@ -79,10 +82,10 @@ export default function Home() {
               <Link
                 key={r.id}
                 to={`/room/${r.id}`}
-                className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition active:scale-[0.99]"
+                className="flex items-center justify-between rounded-2xl border border-line bg-surface p-4 shadow-sm transition active:scale-[0.99] hover:border-brand/50"
               >
                 <span className="font-semibold">{r.name}</span>
-                <span className="text-slate-400">›</span>
+                <ChevronRightIcon size={20} className="text-faint" />
               </Link>
             ))}
           </div>
